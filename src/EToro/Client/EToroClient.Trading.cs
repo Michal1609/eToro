@@ -1,0 +1,66 @@
+using System.Globalization;
+using EToro.Models.Common;
+using EToro.Models.Pnl;
+using EToro.Models.Portfolio;
+using EToro.Models.Trades;
+
+
+namespace EToro.Client;
+
+public sealed partial class EToroClient
+{
+    public async Task<PnlResponse> GetPnlAsync(EToroEnvironment environment, CancellationToken ct = default)
+    {
+        var env = ToEnvSegment(environment);
+        var wrapper = await GetFromJsonAsync<PnlApiResponse>(
+            $"trading/info/{env}/pnl",
+            "Empty PnL response.",
+            ct);
+        return wrapper.ClientPortfolio;
+    }
+
+    public async Task<PortfolioResponse> GetPortfolioAsync(EToroEnvironment environment, CancellationToken ct = default)
+    {
+        var wrapper = await GetFromJsonAsync<PortfolioApiResponse>(
+            "trading/info/portfolio",
+            "Empty portfolio response.",
+            ct);
+        return wrapper.ClientPortfolio;
+    }
+
+    public async Task<TradeHistoryResponse> GetTradeHistoryAsync(
+        DateOnly minDate, int page = 0, int? pageSize = null, CancellationToken ct = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(page);
+        if (pageSize.HasValue)
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize.Value);
+
+        var qs = new QueryStringBuilder()
+            .Add("minDate", minDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))
+            .Add("page", page)
+            .AddIfHasValue("pageSize", pageSize);
+        var trades = await GetFromJsonAsync<List<ClosedTrade>>(
+            $"trading/info/trade/history{qs}",
+            "Empty trade history response.",
+            ct);
+        return new TradeHistoryResponse(trades);
+    }
+
+    public Task<TradeHistoryResponse> GetTradeHistoryAsync(
+        DateTimeOffset minDate, int page = 0, int? pageSize = null, CancellationToken ct = default)
+    {
+        return GetTradeHistoryAsync(DateOnly.FromDateTime(minDate.UtcDateTime), page, pageSize, ct);
+    }
+
+    public async Task<OrderForOpenInfoResponse> GetOrderAsync(
+        EToroEnvironment environment, long orderId, CancellationToken ct = default)
+    {
+        var env = ToEnvSegment(environment);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(orderId);
+
+        return await GetFromJsonAsync<OrderForOpenInfoResponse>(
+            $"trading/info/{env}/orders/{orderId}",
+            "Empty order response.",
+            ct);
+    }
+}

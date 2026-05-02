@@ -48,7 +48,7 @@ internal sealed class EToroSlidingWindow : IDisposable
         var now = _timeProvider.GetUtcNow();
         lock (_lastUsedLock) { _lastUsed = now; }
 
-        using var lease = await _limiter.AcquireAsync(permitCount: 1, ct);
+        using var lease = await _limiter.AcquireAsync(permitCount: 1, ct).ConfigureAwait(false);
         if (!lease.IsAcquired)
             throw new InvalidOperationException(
                 "Rate limiter queue exhausted. Reduce concurrent request rate or increase RateLimitOptions.PermitLimit.");

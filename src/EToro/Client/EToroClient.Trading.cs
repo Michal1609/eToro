@@ -15,7 +15,7 @@ public sealed partial class EToroClient
         var wrapper = await GetFromJsonAsync<PnlApiResponse>(
             $"trading/info/{env}/pnl",
             "Empty PnL response.",
-            ct);
+            ct).ConfigureAwait(false);
         return wrapper.ClientPortfolio;
     }
 
@@ -24,7 +24,7 @@ public sealed partial class EToroClient
         var wrapper = await GetFromJsonAsync<PortfolioApiResponse>(
             "trading/info/portfolio",
             "Empty portfolio response.",
-            ct);
+            ct).ConfigureAwait(false);
         return wrapper.ClientPortfolio;
     }
 
@@ -42,7 +42,7 @@ public sealed partial class EToroClient
         var trades = await GetFromJsonAsync<List<ClosedTrade>>(
             $"trading/info/trade/history{qs}",
             "Empty trade history response.",
-            ct);
+            ct).ConfigureAwait(false);
         return new TradeHistoryResponse(trades);
     }
 
@@ -68,6 +68,6 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<OrderForOpenInfoResponse>(
             $"trading/info/{env}/orders/{orderId}",
             "Empty order response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 }

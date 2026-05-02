@@ -3,6 +3,8 @@ using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 using EToro.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace EToro.Client;
@@ -21,20 +23,31 @@ public sealed partial class EToroClient : IEToroClient
     // Not disposed here: lifetime is managed by IHttpClientFactory / the DI container.
     private readonly HttpClient _httpClient;
     private readonly ErrorHandlingOptions _errorHandlingOptions;
+    private readonly ILogger<EToroClient> _logger;
 
-    public EToroClient(HttpClient httpClient)
+    internal EToroClient(HttpClient httpClient)
         : this(httpClient, Options.Create(new EToroOptions()))
     {
     }
 
-    [ActivatorUtilitiesConstructor]
     public EToroClient(HttpClient httpClient, IOptions<EToroOptions> options)
+        : this(httpClient, options, NullLogger<EToroClient>.Instance)
+    {
+    }
+
+    [ActivatorUtilitiesConstructor]
+    public EToroClient(
+        HttpClient httpClient,
+        IOptions<EToroOptions> options,
+        ILogger<EToroClient> logger)
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(logger);
 
         _httpClient = httpClient;
         _errorHandlingOptions = options.Value.ErrorHandling ?? new ErrorHandlingOptions();
+        _logger = logger;
     }
 
     private static string ToEnvSegment(Models.Common.EToroEnvironment env) =>
@@ -45,11 +58,12 @@ public sealed partial class EToroClient : IEToroClient
         string emptyResponseMessage,
         CancellationToken ct)
     {
-        using var response = await _httpClient.GetAsync(url, ct);
-        await EnsureSuccessAsync(response, ct);
+        LogSendingRequest(_logger, "GET", url);
+        using var response = await _httpClient.GetAsync(url, ct).ConfigureAwait(false);
+        await EnsureSuccessAsync(response, ct).ConfigureAwait(false);
 
-        using var stream = await response.Content.ReadAsStreamAsync(ct);
-        return await JsonSerializer.DeserializeAsync(stream, GetJsonTypeInfo<T>(), ct)
+        using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        return await JsonSerializer.DeserializeAsync(stream, GetJsonTypeInfo<T>(), ct).ConfigureAwait(false)
                ?? throw new InvalidOperationException(emptyResponseMessage);
     }
 
@@ -58,14 +72,15 @@ public sealed partial class EToroClient : IEToroClient
         string emptyResponseMessage,
         CancellationToken ct)
     {
-        using var response = await _httpClient.GetAsync(url, ct);
+        LogSendingRequest(_logger, "GET", url);
+        using var response = await _httpClient.GetAsync(url, ct).ConfigureAwait(false);
         if ((int)response.StatusCode == 204)
             return default;
 
-        await EnsureSuccessAsync(response, ct);
+        await EnsureSuccessAsync(response, ct).ConfigureAwait(false);
 
-        using var stream = await response.Content.ReadAsStreamAsync(ct);
-        return await JsonSerializer.DeserializeAsync(stream, GetJsonTypeInfo<T>(), ct)
+        using var stream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        return await JsonSerializer.DeserializeAsync(stream, GetJsonTypeInfo<T>(), ct).ConfigureAwait(false)
                ?? throw new InvalidOperationException(emptyResponseMessage);
     }
 
@@ -93,28 +108,33 @@ public sealed partial class EToroClient : IEToroClient
         if (_errorHandlingOptions.IncludeResponseBody && response.Content is not null)
         {
             rawBody = _errorHandlingOptions.MaxResponseBodyLength is { } maxBytes
-                ? await ReadBoundedBodyAsync(response.Content, maxBytes, ct)
-                : await response.Content.ReadAsStringAsync(ct);
+                ? await ReadBoundedBodyAsync(response.Content, maxBytes, ct).ConfigureAwait(false)
+                : await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
         }
 
         var body = rawBody is null ? null : FormatResponseBody(rawBody, _errorHandlingOptions);
+        var endpoint = GetSanitizedEndpoint(response);
+        var requestId = GetRequestId(response);
+        var retryAfter = GetRetryAfter(response);
+        LogRequestFailed(_logger, (int)response.StatusCode, endpoint, requestId, retryAfter);
 
         throw new EToroApiException(
             response.StatusCode,
-            GetSanitizedEndpoint(response),
+            endpoint,
             body,
-            GetRequestId(response),
-            GetRetryAfter(response));
+            requestId,
+            retryAfter);
     }
 
     // Reads at most maxBytes from the response stream to prevent OOM on oversized bodies.
     private static async Task<string> ReadBoundedBodyAsync(HttpContent content, int maxBytes, CancellationToken ct)
     {
-        using var stream = await content.ReadAsStreamAsync(ct);
+        using var stream = await content.ReadAsStreamAsync(ct).ConfigureAwait(false);
         var buffer = new byte[maxBytes];
         var total = 0;
         int read;
-        while (total < maxBytes && (read = await stream.ReadAsync(buffer.AsMemory(total, maxBytes - total), ct)) > 0)
+        while (total < maxBytes
+               && (read = await stream.ReadAsync(buffer.AsMemory(total, maxBytes - total), ct).ConfigureAwait(false)) > 0)
             total += read;
         return System.Text.Encoding.UTF8.GetString(buffer, 0, total);
     }
@@ -202,4 +222,24 @@ public sealed partial class EToroClient : IEToroClient
         @"/people/[^/?#]+",
         RegexOptions.CultureInvariant)]
     private static partial Regex PeoplePathRegex();
+
+    [LoggerMessage(
+        EventId = 3001,
+        Level = LogLevel.Debug,
+        Message = "Sending eToro request. Method: {Method}; Endpoint: {Endpoint}.")]
+    private static partial void LogSendingRequest(
+        ILogger logger,
+        string method,
+        string endpoint);
+
+    [LoggerMessage(
+        EventId = 3002,
+        Level = LogLevel.Warning,
+        Message = "eToro request failed. StatusCode: {StatusCode}; Endpoint: {Endpoint}; RequestId: {RequestId}; RetryAfter: {RetryAfter}.")]
+    private static partial void LogRequestFailed(
+        ILogger logger,
+        int statusCode,
+        string endpoint,
+        string? requestId,
+        TimeSpan? retryAfter);
 }

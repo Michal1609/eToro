@@ -22,7 +22,13 @@ var configuration = new ConfigurationBuilder()
         ["EToroOptions:RateLimit:RetryNonIdempotentRequests"] = "false",
         ["EToroOptions:ErrorHandling:IncludeResponseBody"] = "true",
         ["EToroOptions:ErrorHandling:RedactResponseBody"] = "true",
-        ["EToroOptions:ErrorHandling:MaxResponseBodyLength"] = "4096"
+        ["EToroOptions:ErrorHandling:MaxResponseBodyLength"] = "4096",
+        ["EToroOptions:Resilience:Enabled"] = "true",
+        ["EToroOptions:Resilience:MaxRetries"] = "2",
+        ["EToroOptions:Resilience:DefaultRetryDelay"] = "00:00:01",
+        ["EToroOptions:Resilience:MaxRetryDelay"] = "00:00:10",
+        ["EToroOptions:Resilience:RetryJitterRatio"] = "0.1",
+        ["EToroOptions:Resilience:RetryNonIdempotentRequests"] = "false"
     })
     .Build();
 

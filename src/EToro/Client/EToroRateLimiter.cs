@@ -39,7 +39,7 @@ public sealed class EToroRateLimiter : IEToroRateLimiter, IDisposable
         if (!_options.Enabled || request.Method != HttpMethod.Get)
             return;
 
-        await _window.WaitAsync(ct);
+        await _window.WaitAsync(ct).ConfigureAwait(false);
     }
 
     public void Dispose() => _window.Dispose();

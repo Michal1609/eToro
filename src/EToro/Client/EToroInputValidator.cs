@@ -16,6 +16,7 @@ internal static class EToroInputValidator
 
     internal static void ValidateRequiredString(string value, string paramName, int maxLength)
     {
+        // Callers perform null/whitespace checks first; this validates API-safe content constraints.
         if (value.Length > maxLength)
             throw new ArgumentException($"Value exceeds maximum allowed length of {maxLength}.", paramName);
         for (var i = 0; i < value.Length; i++)

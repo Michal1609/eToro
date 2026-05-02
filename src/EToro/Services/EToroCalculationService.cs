@@ -103,12 +103,12 @@ public sealed class EToroCalculationService(IEToroClient client) : IEToroCalcula
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageSize);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxPages);
 
-        var pnl = await client.GetPnlAsync(environment, ct);
+        var pnl = await client.GetPnlAsync(environment, ct).ConfigureAwait(false);
 
         var availableCash = CalculateAvailableCash(pnl);
         var investedPrincipal = CalculateInvestedPrincipal(pnl);
         var unrealizedPnl = CalculateUnrealizedPnL(pnl);
-        var realizedPnl = await CalculateRealizedPnLAsync(fromDate ?? DefaultTradeHistoryFromDate, pageSize, maxPages, ct);
+        var realizedPnl = await CalculateRealizedPnLAsync(fromDate ?? DefaultTradeHistoryFromDate, pageSize, maxPages, ct).ConfigureAwait(false);
         var equity = CalculateEquity(pnl);
         var totalReturn = realizedPnl + unrealizedPnl;
         var estimatedNetDeposits = equity - totalReturn;
@@ -141,7 +141,7 @@ public sealed class EToroCalculationService(IEToroClient client) : IEToroCalcula
 
         for (var page = 0; page < maxPages; page++)
         {
-            var response = await client.GetTradeHistoryAsync(fromDate, page, pageSize, ct);
+            var response = await client.GetTradeHistoryAsync(fromDate, page, pageSize, ct).ConfigureAwait(false);
             if (response.Trades.Count == 0)
                 return realizedPnl;
 

@@ -75,6 +75,12 @@ public sealed class EToroOptions
     public ErrorHandlingOptions ErrorHandling { get; set; } = new();
 
     /// <summary>
+    /// Resilience configuration. Controls conservative retry of transient HTTP failures (5xx/network).
+    /// <br/>CZ: Konfigurace odolnosti. Ridi konzervativni opakovani prechodnych HTTP chyb (5xx/sit).
+    /// </summary>
+    public ResilienceOptions Resilience { get; set; } = new();
+
+    /// <summary>
     /// Resolved URL path segment for the current environment (<c>"demo"</c> or <c>"real"</c>).
     /// <br/>CZ: Rozvinutý URL segment cesty pro aktuální prostředí (<c>"demo"</c> nebo <c>"real"</c>).
     /// </summary>

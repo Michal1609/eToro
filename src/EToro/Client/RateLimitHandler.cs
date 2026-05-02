@@ -1,35 +1,43 @@
 using System.Net;
 using EToro.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace EToro.Client;
 
-public sealed class RateLimitHandler : DelegatingHandler
+public sealed partial class RateLimitHandler : DelegatingHandler
 {
     private readonly Func<TimeSpan, CancellationToken, Task> _delay;
+    private readonly ILogger<RateLimitHandler> _logger;
     private readonly IEToroRateLimiter _rateLimiter;
     private readonly RateLimitOptions _options;
 
-    public RateLimitHandler(IOptions<EToroOptions> options)
-        : this(options, new EToroRateLimiter(options), DelayAsync)
+    public RateLimitHandler(
+        IOptions<EToroOptions> options,
+        ILogger<RateLimitHandler>? logger = null)
+        : this(options, new EToroRateLimiter(options), DelayAsync, logger)
     {
     }
 
     public RateLimitHandler(
         IOptions<EToroOptions> options,
-        IEToroRateLimiter rateLimiter)
-        : this(options, rateLimiter, DelayAsync)
+        IEToroRateLimiter rateLimiter,
+        ILogger<RateLimitHandler>? logger = null)
+        : this(options, rateLimiter, DelayAsync, logger)
     {
     }
 
     internal RateLimitHandler(
         IOptions<EToroOptions> options,
         IEToroRateLimiter rateLimiter,
-        Func<TimeSpan, CancellationToken, Task>? delay = null)
+        Func<TimeSpan, CancellationToken, Task>? delay,
+        ILogger<RateLimitHandler>? logger = null)
     {
         _options = options.Value.RateLimit;
         _rateLimiter = rateLimiter;
         _delay = delay ?? DelayAsync;
+        _logger = logger ?? NullLogger<RateLimitHandler>.Instance;
     }
 
     /// <summary>
@@ -51,9 +59,9 @@ public sealed class RateLimitHandler : DelegatingHandler
 
         while (true)
         {
-            await _rateLimiter.WaitAsync(request, cancellationToken);
+            await _rateLimiter.WaitAsync(request, cancellationToken).ConfigureAwait(false);
 
-            var response = await base.SendAsync(request, cancellationToken);
+            var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
 
             if (response.StatusCode != HttpStatusCode.TooManyRequests)
                 return response;
@@ -62,13 +70,24 @@ public sealed class RateLimitHandler : DelegatingHandler
                 return response;
 
             var delay = GetRetryDelay(response, attempt);
+            if (_logger.IsEnabled(LogLevel.Information))
+            {
+                var endpoint = GetEndpoint(request);
+                LogRateLimitRetry(
+                    _logger,
+                    request.Method.Method,
+                    endpoint,
+                    attempt + 1,
+                    delay);
+            }
+
             response.Dispose();
-            await _delay(delay, cancellationToken);
+            await _delay(delay, cancellationToken).ConfigureAwait(false);
 
             // Rebuild request for retry because HttpRequestMessage is single-use.
             // Dispose the previous clone (if any) once its body has been copied into the new one.
             var previousClone = ownedClone;
-            ownedClone = await CloneRequestAsync(request, cancellationToken);
+            ownedClone = await CloneRequestAsync(request, cancellationToken).ConfigureAwait(false);
             previousClone?.Dispose();
             request = ownedClone;
             attempt++;
@@ -146,7 +165,7 @@ public sealed class RateLimitHandler : DelegatingHandler
         {
             // Materialises the full body for retry. Acceptable for the current GET-only surface;
             // revisit with MemoryPool pooling when write endpoints (POST/PUT) are introduced.
-            var bytes = await original.Content.ReadAsByteArrayAsync(ct);
+            var bytes = await original.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
             clone.Content = new ByteArrayContent(bytes);
 
             foreach (var header in original.Content.Headers)
@@ -160,4 +179,20 @@ public sealed class RateLimitHandler : DelegatingHandler
     {
         return Task.Delay(delay, ct);
     }
+
+    private static string GetEndpoint(HttpRequestMessage request) =>
+        request.RequestUri?.IsAbsoluteUri == true
+            ? request.RequestUri.AbsolutePath
+            : request.RequestUri?.OriginalString ?? "<unknown>";
+
+    [LoggerMessage(
+        EventId = 1001,
+        Level = LogLevel.Information,
+        Message = "Retrying eToro request after HTTP 429. Method: {Method}; Endpoint: {Endpoint}; Attempt: {Attempt}; Delay: {Delay}.")]
+    private static partial void LogRateLimitRetry(
+        ILogger logger,
+        string method,
+        string endpoint,
+        int attempt,
+        TimeSpan delay);
 }

@@ -16,7 +16,7 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<UserProfileResponse>(
             $"user-info/people{qs}",
             "Empty user profiles response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<UserSearchResponse> SearchUsersAsync(
@@ -53,7 +53,7 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<UserSearchResponse>(
             $"user-info/people/search{qs}",
             "Empty user search response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<UserDailyGainResponse> GetUserDailyGainAsync(
@@ -76,7 +76,7 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<UserDailyGainResponse>(
             $"user-info/people/{QueryStringBuilder.EscapePathSegment(username)}/daily-gain{qs}",
             "Empty user daily gain response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<UserGainResponse> GetUserGainAsync(
@@ -89,7 +89,7 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<UserGainResponse>(
             $"user-info/people/{QueryStringBuilder.EscapePathSegment(username)}/gain",
             "Empty user gain response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<UserLivePortfolioResponse> GetUserLivePortfolioAsync(
@@ -102,7 +102,7 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<UserLivePortfolioResponse>(
             $"user-info/people/{QueryStringBuilder.EscapePathSegment(username)}/portfolio/live",
             "Empty user live portfolio response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<UserTradeInfoResponse> GetUserTradeInfoAsync(
@@ -117,6 +117,6 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<UserTradeInfoResponse>(
             $"user-info/people/{QueryStringBuilder.EscapePathSegment(username)}/tradeinfo{qs}",
             "Empty user trade info response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 }

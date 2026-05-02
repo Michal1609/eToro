@@ -57,7 +57,7 @@ public sealed class EToroKeyedRateLimiter : IEToroRateLimiter, IDisposable
             userKey,
             _ => new EToroSlidingWindow(_options.PermitLimit, _options.Window, _timeProvider));
 
-        await window.WaitAsync(ct);
+        await window.WaitAsync(ct).ConfigureAwait(false);
 
         if (Interlocked.Increment(ref _callCount) % EvictionCheckInterval == 0)
             EvictIdleWindows();

@@ -12,14 +12,12 @@ public sealed class EToroApiException : HttpRequestException
         TimeSpan? retryAfter)
         : base(CreateMessage(statusCode, endpoint, requestId, retryAfter), null, statusCode)
     {
-        StatusCode = statusCode;
         Endpoint = endpoint;
         ResponseBody = responseBody;
         RequestId = requestId;
         RetryAfter = retryAfter;
     }
 
-    public new HttpStatusCode StatusCode { get; }
     public string Endpoint { get; }
     public string? ResponseBody { get; }
     public string? RequestId { get; }

@@ -9,6 +9,6 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<UserIdentityResponse>(
             "me",
             "Empty identity response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 }

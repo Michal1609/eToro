@@ -9,7 +9,7 @@ namespace EToro.Tests.Client;
 [TestFixture]
 public class RateLimitHandlerTests
 {
-    private sealed class SequentialHandler(IReadOnlyList<HttpResponseMessage> responses) : HttpMessageHandler
+    private sealed class SequentialHandler(IReadOnlyList<Func<HttpResponseMessage>> factories) : HttpMessageHandler
     {
         private int _callCount;
         private readonly List<HttpRequestMessage> _requests = [];
@@ -21,9 +21,11 @@ public class RateLimitHandlerTests
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
             _requests.Add(request);
-            var response = responses[Math.Min(_callCount, responses.Count - 1)];
+            // Always invoke the factory to produce a fresh instance per call, avoiding
+            // accidental reuse of a previously disposed HttpResponseMessage.
+            var factory = factories[Math.Min(_callCount, factories.Count - 1)];
             _callCount++;
-            return Task.FromResult(response);
+            return Task.FromResult(factory());
         }
     }
 
@@ -65,7 +67,7 @@ public class RateLimitHandlerTests
     [Test]
     public async Task NonRateLimited_ReturnsResponseImmediately()
     {
-        var inner = new SequentialHandler([new HttpResponseMessage(HttpStatusCode.OK)]);
+        var inner = new SequentialHandler([() => new HttpResponseMessage(HttpStatusCode.OK)]);
         var client = BuildClient(inner);
 
         var response = await client.GetAsync("/test");
@@ -82,8 +84,8 @@ public class RateLimitHandlerTests
             TimeSpan.FromMilliseconds(1));
 
         var inner = new SequentialHandler([
-            rateLimited,
-            new HttpResponseMessage(HttpStatusCode.OK)
+            () => rateLimited,
+            () => new HttpResponseMessage(HttpStatusCode.OK)
         ]);
         var client = BuildClient(inner);
 
@@ -105,7 +107,7 @@ public class RateLimitHandlerTests
             return response;
         }
 
-        var inner = new SequentialHandler([Make429(), Make429(), Make429(), Make429()]);
+        var inner = new SequentialHandler([Make429, Make429, Make429, Make429]);
         var client = BuildClient(inner, new RateLimitOptions
         {
             Enabled = false,
@@ -125,8 +127,8 @@ public class RateLimitHandlerTests
     public async Task RateLimited_MaxRetriesZero_Returns429WithoutRetry()
     {
         var inner = new SequentialHandler([
-            new HttpResponseMessage(HttpStatusCode.TooManyRequests),
-            new HttpResponseMessage(HttpStatusCode.OK)
+            () => new HttpResponseMessage(HttpStatusCode.TooManyRequests),
+            () => new HttpResponseMessage(HttpStatusCode.OK)
         ]);
         var client = BuildClient(inner, new RateLimitOptions
         {
@@ -147,8 +149,8 @@ public class RateLimitHandlerTests
     public async Task RateLimited_PostDoesNotRetryByDefault()
     {
         var inner = new SequentialHandler([
-            new HttpResponseMessage(HttpStatusCode.TooManyRequests),
-            new HttpResponseMessage(HttpStatusCode.OK)
+            () => new HttpResponseMessage(HttpStatusCode.TooManyRequests),
+            () => new HttpResponseMessage(HttpStatusCode.OK)
         ]);
         var client = BuildClient(inner, new RateLimitOptions
         {
@@ -169,8 +171,8 @@ public class RateLimitHandlerTests
     public async Task RateLimited_PostRetriesWhenNonIdempotentRetryPolicyIsExplicitlyEnabled()
     {
         var inner = new SequentialHandler([
-            new HttpResponseMessage(HttpStatusCode.TooManyRequests),
-            new HttpResponseMessage(HttpStatusCode.OK)
+            () => new HttpResponseMessage(HttpStatusCode.TooManyRequests),
+            () => new HttpResponseMessage(HttpStatusCode.OK)
         ]);
         var client = BuildClient(inner, new RateLimitOptions
         {
@@ -192,8 +194,8 @@ public class RateLimitHandlerTests
     public async Task RateLimited_HeadRetriesByDefault()
     {
         var inner = new SequentialHandler([
-            new HttpResponseMessage(HttpStatusCode.TooManyRequests),
-            new HttpResponseMessage(HttpStatusCode.OK)
+            () => new HttpResponseMessage(HttpStatusCode.TooManyRequests),
+            () => new HttpResponseMessage(HttpStatusCode.OK)
         ]);
         var client = BuildClient(inner, new RateLimitOptions
         {
@@ -216,8 +218,8 @@ public class RateLimitHandlerTests
     {
         var optionKey = new HttpRequestOptionsKey<string>("test-option");
         var inner = new SequentialHandler([
-            new HttpResponseMessage(HttpStatusCode.TooManyRequests),
-            new HttpResponseMessage(HttpStatusCode.OK)
+            () => new HttpResponseMessage(HttpStatusCode.TooManyRequests),
+            () => new HttpResponseMessage(HttpStatusCode.OK)
         ]);
         var client = BuildClient(inner, new RateLimitOptions
         {
@@ -248,14 +250,17 @@ public class RateLimitHandlerTests
     [Test]
     public async Task RateLimited_WithRetryAfterDelta_UsesHeaderDelay()
     {
-        var rateLimited = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
-        rateLimited.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(
-            TimeSpan.FromMilliseconds(50));
         var delays = new List<TimeSpan>();
 
         var inner = new SequentialHandler([
-            rateLimited,
-            new HttpResponseMessage(HttpStatusCode.OK)
+            () =>
+            {
+                var r = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+                r.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(
+                    TimeSpan.FromMilliseconds(50));
+                return r;
+            },
+            () => new HttpResponseMessage(HttpStatusCode.OK)
         ]);
         var client = BuildClient(
             inner,
@@ -283,8 +288,8 @@ public class RateLimitHandlerTests
     {
         var delays = new List<TimeSpan>();
         var inner = new SequentialHandler([
-            new HttpResponseMessage(HttpStatusCode.TooManyRequests),
-            new HttpResponseMessage(HttpStatusCode.OK)
+            () => new HttpResponseMessage(HttpStatusCode.TooManyRequests),
+            () => new HttpResponseMessage(HttpStatusCode.OK)
         ]);
         var client = BuildClient(
             inner,
@@ -310,12 +315,18 @@ public class RateLimitHandlerTests
     [Test]
     public async Task RateLimited_RetryAfterLongerThanMaxDelay_IsCapped()
     {
-        var rateLimited = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
-        rateLimited.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(
-            TimeSpan.FromMinutes(10));
         var delays = new List<TimeSpan>();
 
-        var inner = new SequentialHandler([rateLimited, new HttpResponseMessage(HttpStatusCode.OK)]);
+        var inner = new SequentialHandler([
+            () =>
+            {
+                var r = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+                r.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(
+                    TimeSpan.FromMinutes(10));
+                return r;
+            },
+            () => new HttpResponseMessage(HttpStatusCode.OK)
+        ]);
         var client = BuildClient(
             inner,
             new RateLimitOptions
@@ -341,8 +352,8 @@ public class RateLimitHandlerTests
     public void RateLimited_DelayCancellation_ThrowsTaskCanceledException()
     {
         var inner = new SequentialHandler([
-            new HttpResponseMessage(HttpStatusCode.TooManyRequests),
-            new HttpResponseMessage(HttpStatusCode.OK)
+            () => new HttpResponseMessage(HttpStatusCode.TooManyRequests),
+            () => new HttpResponseMessage(HttpStatusCode.OK)
         ]);
         var client = BuildClient(
             inner,
@@ -361,11 +372,12 @@ public class RateLimitHandlerTests
     }
 
     [Test]
+    [Category("Timing")]
     public async Task ProactiveGetLimiter_WaitsWhenPermitWindowIsExhausted()
     {
         var inner = new SequentialHandler([
-            new HttpResponseMessage(HttpStatusCode.OK),
-            new HttpResponseMessage(HttpStatusCode.OK)
+            () => new HttpResponseMessage(HttpStatusCode.OK),
+            () => new HttpResponseMessage(HttpStatusCode.OK)
         ]);
         var client = BuildClient(
             inner,
@@ -395,8 +407,8 @@ public class RateLimitHandlerTests
     public async Task OtherErrors_AreNotRetried()
     {
         var inner = new SequentialHandler([
-            new HttpResponseMessage(HttpStatusCode.Unauthorized),
-            new HttpResponseMessage(HttpStatusCode.OK)
+            () => new HttpResponseMessage(HttpStatusCode.Unauthorized),
+            () => new HttpResponseMessage(HttpStatusCode.OK)
         ]);
         var client = BuildClient(inner);
 

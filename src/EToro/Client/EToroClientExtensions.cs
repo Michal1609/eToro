@@ -44,6 +44,7 @@ public static class EToroClientExtensions
     private static IServiceCollection AddEToroCore(this IServiceCollection services, bool useKeyedRateLimiter)
     {
         services.AddTransient<EToroAuthHandler>();
+        services.AddTransient<TransientHttpErrorHandler>();
 
         if (useKeyedRateLimiter)
             services.AddSingleton<IEToroRateLimiter, EToroKeyedRateLimiter>();
@@ -62,7 +63,15 @@ public static class EToroClientExtensions
                     client.DefaultRequestHeaders.UserAgent.ParseAdd(options.UserAgent);
             })
             .AddHttpMessageHandler<EToroAuthHandler>()
+            .AddHttpMessageHandler<TransientHttpErrorHandler>()
             .AddHttpMessageHandler<RateLimitHandler>();
+
+        services.AddTransient<IEToroTradingClient>(sp => sp.GetRequiredService<IEToroClient>());
+        services.AddTransient<IEToroMarketDataClient>(sp => sp.GetRequiredService<IEToroClient>());
+        services.AddTransient<IEToroUserInfoClient>(sp => sp.GetRequiredService<IEToroClient>());
+        services.AddTransient<IEToroSocialClient>(sp => sp.GetRequiredService<IEToroClient>());
+        services.AddTransient<IEToroFeedClient>(sp => sp.GetRequiredService<IEToroClient>());
+        services.AddTransient<IEToroWatchlistClient>(sp => sp.GetRequiredService<IEToroClient>());
 
         services.AddScoped<IEToroCalculationService, EToroCalculationService>();
         return services;
@@ -92,6 +101,10 @@ public static class EToroClientExtensions
                 options => !string.IsNullOrWhiteSpace(options.UserAgent),
                 "EToroOptions.UserAgent must be configured.")
             .Validate(
+                options => options.Environment.Equals("real", StringComparison.OrdinalIgnoreCase)
+                           || options.Environment.Equals("demo", StringComparison.OrdinalIgnoreCase),
+                "EToroOptions.Environment must be 'real' or 'demo'.")
+            .Validate(
                 options => options.RateLimit.PermitLimit > 0,
                 "EToroOptions.RateLimit.PermitLimit must be greater than zero.")
             .Validate(
@@ -115,6 +128,21 @@ public static class EToroClientExtensions
             .Validate(
                 options => options.ErrorHandling?.MaxResponseBodyLength is null or >= 0,
                 "EToroOptions.ErrorHandling.MaxResponseBodyLength must be null or zero or greater.")
+            .Validate(
+                options => options.Resilience is not null,
+                "EToroOptions.Resilience must be configured.")
+            .Validate(
+                options => options.Resilience?.MaxRetries >= 0,
+                "EToroOptions.Resilience.MaxRetries must be zero or greater.")
+            .Validate(
+                options => options.Resilience?.DefaultRetryDelay >= TimeSpan.Zero,
+                "EToroOptions.Resilience.DefaultRetryDelay must be zero or greater.")
+            .Validate(
+                options => options.Resilience?.MaxRetryDelay >= TimeSpan.Zero,
+                "EToroOptions.Resilience.MaxRetryDelay must be zero or greater.")
+            .Validate(
+                options => options.Resilience?.RetryJitterRatio is >= 0 and <= 1,
+                "EToroOptions.Resilience.RetryJitterRatio must be between zero and one.")
             .ValidateOnStart();
     }
 

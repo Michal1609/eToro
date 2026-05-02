@@ -3,6 +3,7 @@
     <Project Path="src/EToro/EToro.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/EToro.Aot.SmokeTest/EToro.Aot.SmokeTest.csproj" />
     <Project Path="tests/EToro.Tests/EToro.Tests.csproj" />
   </Folder>
 </Solution>

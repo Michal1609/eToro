@@ -31,6 +31,6 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<PopularInvestorsResponse>(
             $"user-info/people/search{qs}",
             "Empty popular investors response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 }

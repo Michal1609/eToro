@@ -59,6 +59,33 @@ public class EToroClientExtensionsTests
     }
 
     [Test]
+    public void AddEToro_RegistersDomainSpecificClientInterfaces()
+    {
+        var services = new ServiceCollection();
+
+        services.AddEToro(options =>
+        {
+            options.ApiKey = "api-key";
+            options.UserKey = "user-key";
+            options.BaseAddress = new Uri("https://example.com/api/");
+            options.AllowCustomBaseAddress = true;
+            options.UserAgent = "EToro.Tests";
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(provider.GetRequiredService<IEToroTradingClient>(), Is.Not.Null);
+            Assert.That(provider.GetRequiredService<IEToroMarketDataClient>(), Is.Not.Null);
+            Assert.That(provider.GetRequiredService<IEToroUserInfoClient>(), Is.Not.Null);
+            Assert.That(provider.GetRequiredService<IEToroSocialClient>(), Is.Not.Null);
+            Assert.That(provider.GetRequiredService<IEToroFeedClient>(), Is.Not.Null);
+            Assert.That(provider.GetRequiredService<IEToroWatchlistClient>(), Is.Not.Null);
+        });
+    }
+
+    [Test]
     public void AddEToro_NullConfiguration_ThrowsArgumentNullException()
     {
         var services = new ServiceCollection();
@@ -164,6 +191,33 @@ public class EToroClientExtensionsTests
             () => _ = provider.GetRequiredService<IOptions<EToroOptions>>().Value);
 
         Assert.That(exception!.Failures, Has.Some.Contains("ErrorHandling.MaxResponseBodyLength"));
+    }
+
+    [Test]
+    public void AddEToro_InvalidResilienceOptions_ThrowsOptionsValidationException()
+    {
+        var services = new ServiceCollection();
+
+        services.AddEToro(options =>
+        {
+            options.ApiKey = "api-key";
+            options.UserKey = "user-key";
+            options.BaseAddress = new Uri("https://example.com/api/");
+            options.AllowCustomBaseAddress = true;
+            options.UserAgent = "EToro.Tests";
+            options.Resilience.MaxRetries = -1;
+            options.Resilience.DefaultRetryDelay = TimeSpan.FromMilliseconds(-1);
+            options.Resilience.RetryJitterRatio = 2;
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        var exception = Assert.Throws<OptionsValidationException>(
+            () => _ = provider.GetRequiredService<IOptions<EToroOptions>>().Value);
+
+        Assert.That(exception!.Failures, Has.Some.Contains("Resilience.MaxRetries"));
+        Assert.That(exception.Failures, Has.Some.Contains("Resilience.DefaultRetryDelay"));
+        Assert.That(exception.Failures, Has.Some.Contains("Resilience.RetryJitterRatio"));
     }
 
     [Test]

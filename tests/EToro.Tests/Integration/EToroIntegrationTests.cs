@@ -232,16 +232,19 @@ public class EToroIntegrationTests
         Assert.That(result, Is.GreaterThanOrEqualTo(0));
     }
 
-    [Test] // nesedi, 21.59 vs 26...
-    public async Task Service_CalculateProfitLoss_Real()
+    [Test]
+    public async Task Service_CalculateProfitLoss_Real_RecomputesFromOpenPositions()
     {
         var pnl = await _client.GetPnlAsync(EToroEnvironment.Real);
 
         var result = _service.CalculateProfitLoss(pnl);
+        var expected = pnl.Positions.Sum(p => p.PnL)
+                       + pnl.MirrorPortfolios.SelectMany(m => m.Positions).Sum(p => p.PnL);
 
         Debug.WriteLine($"Unrealized P/L: {result:+0.00;-0.00} USD");
+        Debug.WriteLine($"API-reported unrealized P/L: {pnl.UnrealizedPnL:+0.00;-0.00} USD");
 
-        Assert.Pass();
+        Assert.That(result, Is.EqualTo(expected));
     }
 
     [Test] // Celkov8 hodnota

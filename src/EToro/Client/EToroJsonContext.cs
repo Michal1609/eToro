@@ -13,7 +13,9 @@ using EToro.Models.Watchlist;
 
 namespace EToro.Client;
 
-[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
+// Enum converters stay on concrete enum types with JsonStringEnumConverter<T>.
+// The open JsonStringEnumConverter is reflection-based and not NativeAOT-safe.
+[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true, MaxDepth = 32)]
 [JsonSerializable(typeof(AgentPortfolioResponse))]
 [JsonSerializable(typeof(DiscussionsResponse))]
 [JsonSerializable(typeof(UserIdentityResponse))]

@@ -17,7 +17,7 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<DiscussionsResponse>(
             $"feeds/instrument/{marketId}{qs}",
             "Empty instrument feed response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<DiscussionsResponse> GetUserFeedPostsAsync(
@@ -33,7 +33,7 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<DiscussionsResponse>(
             $"feeds/user/{userId}{qs}",
             "Empty user feed response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     private static void ValidateFeedPostsRequest(FeedPostsRequest request)

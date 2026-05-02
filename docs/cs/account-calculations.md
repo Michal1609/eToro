@@ -33,9 +33,11 @@ var metrics = await calculations.GetAccountMetricsAsync(
 | `UnrealizedPnL` | Nerealizované PnL z otevřených manuálních a copy pozic. |
 | `RealizedPnL` | Součet `NetProfit` uzavřených obchodů za zadaný rozsah trade history. |
 | `Equity` | Available cash plus invested principal plus unrealized PnL. |
-| `NetDeposits` | Dopočteno jako `Equity - TotalReturn`. |
+| `EstimatedNetDeposits` | **Odhad** vypočítaný jako `Equity - TotalReturn`. Nejedná se o skutečný vkladový výpis — výběry, bonusy, dividendy a další peněžní toky nemusí být zahrnuty. |
 | `TotalReturn` | Realized PnL plus unrealized PnL. |
-| `TotalReturnPct` | `TotalReturn / NetDeposits * 100`, nebo `0`, když jsou net deposits nulové. |
+| `TotalReturnPct` | `TotalReturn / EstimatedNetDeposits * 100`, nebo `0`, když jsou odhadované net deposits nulové. |
+
+> **Poznámka:** Všechny metriky jsou odvozeny z PnL a trade-history endpointů eToro a jedná se pouze o odhady. Nejsou to autoritativní výpisy účtu.
 
 ## Přímé výpočty
 
@@ -48,6 +50,14 @@ var unrealized = calculations.CalculateUnrealizedPnL(pnl);
 var realized = calculations.CalculateRealizedProfit(history.Trades);
 ```
 
+> **Poznámka k `CalculateUnrealizedPnL`:** Metoda sčítá PnL z jednotlivých záznamů pozic.
+> Výsledek se může lišit od hodnoty `PnlResponse.UnrealizedPnL` vrácené přímo API kvůli zaokrouhlování
+> nebo jinému způsobu agregace na straně serveru. Pro autoritativní hodnotu čtěte `pnl.UnrealizedPnL` přímo.
+
 ## Bezpečné stránkování
 
 `GetAccountMetricsAsync` čte historii uzavřených obchodů s omezeným stránkováním. Parametry `pageSize` a `maxPages` určují API zátěž a maximální rozsah skenování.
+
+Pokud skenování dosáhne limitu `maxPages` bez nalezení prázdné terminální stránky, metoda vyvolá `InvalidOperationException`, aby zabránila tiché neúplnosti výpočtu realized PnL. V takovém případě zvyšte `maxPages` nebo zúžte rozsah `fromDate`.
+
+Duplicitní hodnoty `PositionId` napříč stránkami jsou automaticky dedupikovány — každý uzavřený obchod je započítán nejvýše jednou.

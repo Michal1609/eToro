@@ -1,5 +1,24 @@
 # Začínáme
 
+## ⚠️ Upozornění
+
+Tento projekt **není nijak spojen s eToro, není jím podporován ani schválen**.
+
+Software je poskytován **výhradně pro informační a vzdělávací účely**.
+
+- **Neposkytuje finanční poradenství.**
+- **Nesmí být jediným podkladem pro obchodní rozhodnutí.**
+- Získaná data mohou být **nepřesná, zpožděná nebo neúplná**.
+- Knihovna v současnosti poskytuje pouze **read-only** koncové body.
+  Zápisové operace (POST/PUT/DELETE) přijdou později; jejich použití je
+  na vlastní riziko uživatele.
+
+Autor a přispěvatelé **odmítají veškerou odpovědnost** za jakékoli přímé,
+nepřímé, vedlejší, následné nebo sankční škody vzniklé v souvislosti
+s používáním tohoto softwaru, zejména za finanční ztráty, propasené obchody,
+nesprávné výpočty, výpadky, ztrátu dat či porušení podmínek eToro.
+Software používejte výhradně na vlastní nebezpečí.
+
 ## Požadavky
 
 - .NET 9 SDK nebo novější.

@@ -9,6 +9,6 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<CopiersResponse>(
             "pi-data/copiers",
             "Empty copiers response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 }

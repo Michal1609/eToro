@@ -9,7 +9,7 @@ public sealed partial class EToroClient
         CancellationToken ct = default)
     {
         var url = "market-data/exchanges" + new QueryStringBuilder().AddCsv("exchangeIds", exchangeIds);
-        return await GetFromJsonAsync<ExchangesResponse>(url, "Empty exchanges response.", ct);
+        return await GetFromJsonAsync<ExchangesResponse>(url, "Empty exchanges response.", ct).ConfigureAwait(false);
     }
 
     public async Task<InstrumentTypesResponse> GetInstrumentTypesAsync(
@@ -17,7 +17,7 @@ public sealed partial class EToroClient
         CancellationToken ct = default)
     {
         var url = "market-data/instrument-types" + new QueryStringBuilder().AddCsv("instrumentTypeIds", instrumentTypeIds);
-        return await GetFromJsonAsync<InstrumentTypesResponse>(url, "Empty instrument types response.", ct);
+        return await GetFromJsonAsync<InstrumentTypesResponse>(url, "Empty instrument types response.", ct).ConfigureAwait(false);
     }
 
     public async Task<InstrumentMetadataResponse> GetInstrumentMetadataAsync(
@@ -36,7 +36,7 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<InstrumentMetadataResponse>(
             $"market-data/instruments{qs}",
             "Empty instrument metadata response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<InstrumentClosingPrice>> GetHistoricalClosingPricesAsync(
@@ -45,7 +45,7 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<IReadOnlyList<InstrumentClosingPrice>>(
             "market-data/instruments/history/closing-price",
             "Empty closing prices response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<StocksIndustriesResponse> GetStocksIndustriesAsync(
@@ -53,7 +53,7 @@ public sealed partial class EToroClient
         CancellationToken ct = default)
     {
         var url = "market-data/stocks-industries" + new QueryStringBuilder().AddCsv("stocksIndustryIds", stocksIndustryIds);
-        return await GetFromJsonAsync<StocksIndustriesResponse>(url, "Empty stocks industries response.", ct);
+        return await GetFromJsonAsync<StocksIndustriesResponse>(url, "Empty stocks industries response.", ct).ConfigureAwait(false);
     }
 
     public async Task<InstrumentSearchResponse> SearchInstrumentsAsync(
@@ -87,7 +87,7 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<InstrumentSearchResponse>(
             $"market-data/search{qs}",
             "Empty instruments response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<LiveRatesResponse> GetRatesAsync(
@@ -104,7 +104,7 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<LiveRatesResponse>(
             $"market-data/instruments/rates{qs}",
             "Empty rates response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<CandleResponse> GetCandlesAsync(
@@ -122,6 +122,6 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<CandleResponse>(
             $"market-data/instruments/{instrumentId}/history/candles/{dir}/{interval}/{candlesCount}",
             "Empty candles response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 }

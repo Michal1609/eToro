@@ -33,9 +33,11 @@ var metrics = await calculations.GetAccountMetricsAsync(
 | `UnrealizedPnL` | Unrealized PnL from open manual and copy positions. |
 | `RealizedPnL` | Sum of closed trade `NetProfit` over the requested trade-history range. |
 | `Equity` | Available cash plus invested principal plus unrealized PnL. |
-| `NetDeposits` | Inferred as `Equity - TotalReturn`. |
+| `EstimatedNetDeposits` | **Estimate** inferred as `Equity - TotalReturn`. Not a real deposit ledger — withdrawals, bonuses, dividends, and other cash flows may not be reflected. |
 | `TotalReturn` | Realized PnL plus unrealized PnL. |
-| `TotalReturnPct` | `TotalReturn / NetDeposits * 100`, or `0` when net deposits are zero. |
+| `TotalReturnPct` | `TotalReturn / EstimatedNetDeposits * 100`, or `0` when estimated net deposits are zero. |
+
+> **Note:** All metrics are derived from eToro's PnL and trade-history endpoints and are estimates only. They are not authoritative account statements.
 
 ## Direct Calculation Methods
 
@@ -48,6 +50,15 @@ var unrealized = calculations.CalculateUnrealizedPnL(pnl);
 var realized = calculations.CalculateRealizedProfit(history.Trades);
 ```
 
+> **Note on `CalculateUnrealizedPnL`:** This method sums PnL from individual position records.
+> The result may differ from the API-reported `PnlResponse.UnrealizedPnL` field due to rounding
+> or different server-side grouping. Read `pnl.UnrealizedPnL` directly when you need the
+> API-authoritative value.
+
 ## Paging Safety
 
 `GetAccountMetricsAsync` reads closed trade history with bounded paging. Use `pageSize` and `maxPages` to control API load and how far the service can scan.
+
+If the trade history scan reaches `maxPages` without finding an empty terminal page, the method throws `InvalidOperationException` to prevent silently incomplete realized-PnL totals. Increase `maxPages` or narrow the `fromDate` range if this occurs.
+
+Duplicate `PositionId` values across pages are deduplicated automatically — each closed trade is counted at most once.

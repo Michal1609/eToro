@@ -14,7 +14,18 @@ Use one of these mechanisms instead:
 
 ## Reporting
 
-Report security issues privately to the maintainer before opening a public issue.
+**Please do not open a public GitHub issue for security vulnerabilities.**
+
+Report security issues through [GitHub Private Vulnerability Reporting](https://github.com/Michal1609/eToro/security/advisories/new)
+or by e-mail to **michal.grznar@seznam.cz**.
+
+Please include:
+
+- A description of the vulnerability and its potential impact.
+- Steps to reproduce or a proof-of-concept.
+- Affected version(s) / commit range.
+
+You can expect an acknowledgement within **5 business days** and a status update within **14 calendar days**.
 
 ## Supported Versions
 

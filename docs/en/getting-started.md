@@ -1,5 +1,29 @@
 # Getting Started
 
+## ⚠️ Disclaimer
+
+This project is **not affiliated with, endorsed by, or connected to eToro in any way**.
+
+This software is provided for **informational and educational purposes only**.
+
+- It does **not provide financial advice**.
+- It should **not be used as the sole basis for trading decisions**.
+- Data retrieved may be **inaccurate, delayed, or incomplete**.
+- Currently the library exposes **read-only** endpoints. Mutating endpoints
+  (POST / PUT / DELETE — order placement, watchlist edits, etc.) will be added
+  later; consumers using such operations do so at their own risk.
+
+The author and contributors **disclaim all liability** for any direct,
+indirect, incidental, consequential, or punitive damages arising from the use
+of this software, including but not limited to financial loss, missed trades,
+incorrect calculations, downtime, data loss, or breach of eToro's terms of
+service. Use entirely at your own risk.
+
+By using this library you acknowledge that you understand the risks of
+algorithmic and API-driven trading and that you alone are responsible for
+your trading decisions and compliance with applicable laws and eToro's API
+terms of use.
+
 ## Requirements
 
 - .NET 9 SDK or newer.

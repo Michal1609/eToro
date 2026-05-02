@@ -9,7 +9,7 @@ public sealed partial class EToroClient
         return await GetFromJsonOrNoContentAsync<CuratedListsResponse>(
             "curated-lists",
             "Empty curated lists response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<MarketRecommendationsResponse?> GetMarketRecommendationsAsync(
@@ -22,7 +22,7 @@ public sealed partial class EToroClient
         return await GetFromJsonOrNoContentAsync<MarketRecommendationsResponse>(
             $"market-recommendations/{itemsCount}",
             "Empty market recommendations response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<WatchlistsResponse> GetUserWatchlistsAsync(
@@ -42,7 +42,7 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<WatchlistsResponse>(
             $"watchlists{qs}",
             "Empty user watchlists response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<WatchlistItemDto>> GetDefaultWatchlistItemsAsync(
@@ -65,7 +65,7 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<IReadOnlyList<WatchlistItemDto>>(
             $"watchlists/default-watchlists/items{qs}",
             "Empty default watchlist items response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<WatchlistsResponse> GetUsersPublicWatchlistsAsync(
@@ -81,7 +81,7 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<WatchlistsResponse>(
             $"watchlists/public/{userId}{qs}",
             "Empty public watchlists response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<WatchlistDto> GetSinglePublicWatchlistAsync(
@@ -104,7 +104,7 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<WatchlistDto>(
             $"watchlists/public/{userId}/{QueryStringBuilder.EscapePathSegment(watchlistId)}{qs}",
             "Empty single public watchlist response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 
     public async Task<WatchlistsResponse> GetSingleWatchlistAsync(
@@ -125,6 +125,6 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<WatchlistsResponse>(
             $"watchlists/{QueryStringBuilder.EscapePathSegment(watchlistId)}{qs}",
             "Empty single watchlist response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 }

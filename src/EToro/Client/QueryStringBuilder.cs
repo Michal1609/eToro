@@ -28,7 +28,7 @@ internal sealed class QueryStringBuilder
 
     public QueryStringBuilder Add(string name, Enum value)
     {
-        _parts.Add($"{Escape(name)}={Escape(value.ToString())}");
+        _parts.Add($"{Escape(name)}={Escape(value.ToApiString())}");
         return this;
     }
 

@@ -352,8 +352,9 @@ public class EToroCalculationServiceTests
     }
 
     [Test]
-    public async Task GetAccountMetricsAsync_StopsAtMaxPages()
+    public void GetAccountMetricsAsync_HitsMaxPagesWithFullLastPage_Throws()
     {
+        // 3 pages available, maxPages=2, pageSize=1 — last fetched page is full → must throw
         var handler = new MetricsHttpMessageHandler([
             [CreateTrade(positionId: 1, netProfit: 1m)],
             [CreateTrade(positionId: 2, netProfit: 1m)],
@@ -365,12 +366,69 @@ public class EToroCalculationServiceTests
         });
         var service = new EToroCalculationService(client);
 
-        var metrics = await service.GetAccountMetricsAsync(
-            EToroEnvironment.Real,
-            pageSize: 1,
-            maxPages: 2);
+        Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.GetAccountMetricsAsync(EToroEnvironment.Real, pageSize: 1, maxPages: 2));
+        Assert.That(handler.TradeHistoryUris, Has.Count.EqualTo(2));
+    }
+
+    [Test]
+    public async Task GetAccountMetricsAsync_MaxPagesExactlyCoversAllData_DoesNotThrow()
+    {
+        // 2 full pages + 1 empty page → exits cleanly at empty page, no throw
+        var handler = new MetricsHttpMessageHandler([
+            [CreateTrade(positionId: 1, netProfit: 1m)],
+            [CreateTrade(positionId: 2, netProfit: 1m)],
+            []
+        ]);
+        var client = new EToroClient(new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://public-api.etoro.com/api/v1/")
+        });
+        var service = new EToroCalculationService(client);
+
+        var metrics = await service.GetAccountMetricsAsync(EToroEnvironment.Real, pageSize: 1, maxPages: 3);
 
         Assert.That(metrics.RealizedPnL, Is.EqualTo(2m));
+    }
+
+    [Test]
+    public async Task GetAccountMetricsAsync_DeduplicatesPositionIds_CountsOnce()
+    {
+        // Page 0 returns trade 1 and 2. Page 1 returns trade 1 again (duplicate) and trade 3.
+        // Trade 1 must be counted only once.
+        var handler = new MetricsHttpMessageHandler([
+            [CreateTrade(positionId: 1, netProfit: 10m), CreateTrade(positionId: 2, netProfit: 5m)],
+            [CreateTrade(positionId: 1, netProfit: 10m), CreateTrade(positionId: 3, netProfit: 3m)]
+            // page 2 returns empty (out of range) → terminates naturally
+        ]);
+        var client = new EToroClient(new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://public-api.etoro.com/api/v1/")
+        });
+        var service = new EToroCalculationService(client);
+
+        var metrics = await service.GetAccountMetricsAsync(EToroEnvironment.Real, pageSize: 2, maxPages: 10);
+
+        Assert.That(metrics.RealizedPnL, Is.EqualTo(18m)); // 10 + 5 + 3
+    }
+
+    [Test]
+    public async Task GetAccountMetricsAsync_AllDuplicatePage_StopsEarly()
+    {
+        // Page 0: trade 1. Page 1: trade 1 again (all duplicates) → stop.
+        var handler = new MetricsHttpMessageHandler([
+            [CreateTrade(positionId: 1, netProfit: 7m)],
+            [CreateTrade(positionId: 1, netProfit: 7m)]
+        ]);
+        var client = new EToroClient(new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://public-api.etoro.com/api/v1/")
+        });
+        var service = new EToroCalculationService(client);
+
+        var metrics = await service.GetAccountMetricsAsync(EToroEnvironment.Real, pageSize: 1, maxPages: 10);
+
+        Assert.That(metrics.RealizedPnL, Is.EqualTo(7m));
         Assert.That(handler.TradeHistoryUris, Has.Count.EqualTo(2));
     }
 

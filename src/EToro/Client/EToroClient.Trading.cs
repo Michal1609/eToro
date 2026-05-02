@@ -15,7 +15,7 @@ public sealed partial class EToroClient
         var wrapper = await GetFromJsonAsync<PnlApiResponse>(
             $"trading/info/{env}/pnl",
             "Empty PnL response.",
-            ct);
+            ct).ConfigureAwait(false);
         return wrapper.ClientPortfolio;
     }
 
@@ -24,7 +24,7 @@ public sealed partial class EToroClient
         var wrapper = await GetFromJsonAsync<PortfolioApiResponse>(
             "trading/info/portfolio",
             "Empty portfolio response.",
-            ct);
+            ct).ConfigureAwait(false);
         return wrapper.ClientPortfolio;
     }
 
@@ -42,10 +42,17 @@ public sealed partial class EToroClient
         var trades = await GetFromJsonAsync<List<ClosedTrade>>(
             $"trading/info/trade/history{qs}",
             "Empty trade history response.",
-            ct);
+            ct).ConfigureAwait(false);
         return new TradeHistoryResponse(trades);
     }
 
+    /// <summary>
+    /// Convenience overload that converts <paramref name="minDate"/> to a <see cref="DateOnly"/>
+    /// by taking <see cref="DateTimeOffset.UtcDateTime"/>. Callers in non-UTC time zones may
+    /// receive trades from a different local calendar day than expected; prefer the
+    /// <see cref="GetTradeHistoryAsync(DateOnly,int,int?,CancellationToken)"/> overload when
+    /// exact date boundaries matter.
+    /// </summary>
     public Task<TradeHistoryResponse> GetTradeHistoryAsync(
         DateTimeOffset minDate, int page = 0, int? pageSize = null, CancellationToken ct = default)
     {
@@ -61,6 +68,6 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<OrderForOpenInfoResponse>(
             $"trading/info/{env}/orders/{orderId}",
             "Empty order response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 }

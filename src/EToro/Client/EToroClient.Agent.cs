@@ -9,6 +9,6 @@ public sealed partial class EToroClient
         return await GetFromJsonAsync<AgentPortfolioResponse>(
             "agent-portfolios",
             "Empty agent portfolios response.",
-            ct);
+            ct).ConfigureAwait(false);
     }
 }

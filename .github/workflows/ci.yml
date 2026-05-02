@@ -51,6 +51,10 @@ jobs:
           name: test-results-${{ matrix.os }}
           path: "**/*.trx"
 
+      - name: NativeAOT smoke publish
+        if: matrix.os == 'ubuntu-latest'
+        run: dotnet publish tests/EToro.Aot.SmokeTest/EToro.Aot.SmokeTest.csproj --configuration Release --runtime linux-x64 --self-contained true /p:PublishAot=true /p:IlcTreatWarningsAsErrors=true -warnaserror:IL2026,IL2104,IL3050
+
       - name: Pack
         if: matrix.os == 'ubuntu-latest'
         run: dotnet pack src/EToro/EToro.csproj --configuration Release --no-build --output artifacts/packages

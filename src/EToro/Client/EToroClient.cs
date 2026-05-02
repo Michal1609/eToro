@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
 using EToro.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,12 +7,17 @@ using Microsoft.Extensions.Options;
 
 namespace EToro.Client;
 
+/// <summary>
+/// Typed read-oriented client for the eToro public API.
+/// </summary>
+/// <remarks>
+/// This project is not affiliated with, endorsed by, or connected to eToro in any way.
+/// It does not provide financial advice; see the README disclaimer before using the client.
+/// </remarks>
 public sealed partial class EToroClient : IEToroClient
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(EToroJsonContext.Default.Options)
-    {
-        MaxDepth = 32
-    };
+    private static readonly EToroJsonContext JsonContext = EToroJsonContext.Default;
+
     // Not disposed here: lifetime is managed by IHttpClientFactory / the DI container.
     private readonly HttpClient _httpClient;
     private readonly ErrorHandlingOptions _errorHandlingOptions;
@@ -43,7 +49,7 @@ public sealed partial class EToroClient : IEToroClient
         await EnsureSuccessAsync(response, ct);
 
         using var stream = await response.Content.ReadAsStreamAsync(ct);
-        return await JsonSerializer.DeserializeAsync<T>(stream, JsonOptions, ct)
+        return await JsonSerializer.DeserializeAsync(stream, GetJsonTypeInfo<T>(), ct)
                ?? throw new InvalidOperationException(emptyResponseMessage);
     }
 
@@ -59,9 +65,13 @@ public sealed partial class EToroClient : IEToroClient
         await EnsureSuccessAsync(response, ct);
 
         using var stream = await response.Content.ReadAsStreamAsync(ct);
-        return await JsonSerializer.DeserializeAsync<T>(stream, JsonOptions, ct)
+        return await JsonSerializer.DeserializeAsync(stream, GetJsonTypeInfo<T>(), ct)
                ?? throw new InvalidOperationException(emptyResponseMessage);
     }
+
+    private static JsonTypeInfo<T> GetJsonTypeInfo<T>() =>
+        JsonContext.GetTypeInfo(typeof(T)) as JsonTypeInfo<T>
+        ?? throw new InvalidOperationException($"JSON type metadata for {typeof(T).FullName} is not registered.");
 
     /// <summary>
     /// Throws <see cref="EToroApiException"/> for non-success responses.

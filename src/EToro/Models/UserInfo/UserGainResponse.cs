@@ -32,8 +32,19 @@ internal sealed class UserDailyGainResponseJsonConverter : JsonConverter<UserDai
     {
         if (reader.TokenType == JsonTokenType.StartArray)
         {
-            var entries = JsonSerializer.Deserialize<IReadOnlyList<UserGainEntry>>(ref reader, options);
-            return new UserDailyGainResponse(entries, null);
+            var entries = new List<UserGainEntry>();
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonTokenType.EndArray)
+                    return new UserDailyGainResponse(entries, null);
+
+                if (reader.TokenType != JsonTokenType.StartObject)
+                    throw new JsonException("Unexpected daily gain entry shape.");
+
+                entries.Add(ReadEntry(ref reader));
+            }
+
+            throw new JsonException("Unexpected end of daily gain response.");
         }
 
         if (reader.TokenType == JsonTokenType.StartObject)
@@ -49,6 +60,40 @@ internal sealed class UserDailyGainResponseJsonConverter : JsonConverter<UserDai
         throw new JsonException("Unexpected daily gain response shape.");
     }
 
+    private static UserGainEntry ReadEntry(ref Utf8JsonReader reader)
+    {
+        DateTimeOffset timestamp = default;
+        decimal gain = default;
+
+        while (reader.Read())
+        {
+            if (reader.TokenType == JsonTokenType.EndObject)
+                return new UserGainEntry(timestamp, gain);
+
+            if (reader.TokenType != JsonTokenType.PropertyName)
+                throw new JsonException("Unexpected daily gain entry property shape.");
+
+            var propertyName = reader.GetString();
+            if (!reader.Read())
+                throw new JsonException("Unexpected end of daily gain entry.");
+
+            switch (propertyName)
+            {
+                case "timestamp":
+                    timestamp = reader.GetDateTimeOffset();
+                    break;
+                case "gain":
+                    gain = reader.GetDecimal();
+                    break;
+                default:
+                    reader.Skip();
+                    break;
+            }
+        }
+
+        throw new JsonException("Unexpected end of daily gain entry.");
+    }
+
     public override void Write(
         Utf8JsonWriter writer,
         UserDailyGainResponse value,
@@ -56,7 +101,16 @@ internal sealed class UserDailyGainResponseJsonConverter : JsonConverter<UserDai
     {
         if (value.Daily is not null)
         {
-            JsonSerializer.Serialize(writer, value.Daily, options);
+            writer.WriteStartArray();
+            foreach (var entry in value.Daily)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("timestamp", entry.Timestamp);
+                writer.WriteNumber("gain", entry.Gain);
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
             return;
         }
 

@@ -13,7 +13,7 @@ using EToro.Models.Watchlist;
 
 namespace EToro.Client;
 
-[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true)]
+[JsonSourceGenerationOptions(PropertyNameCaseInsensitive = true, MaxDepth = 32)]
 [JsonSerializable(typeof(AgentPortfolioResponse))]
 [JsonSerializable(typeof(DiscussionsResponse))]
 [JsonSerializable(typeof(UserIdentityResponse))]

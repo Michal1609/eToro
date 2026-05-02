@@ -11,8 +11,13 @@ namespace EToro.Client;
 /// Multi-user scenarios (one application, multiple user keys) require a keyed or per-user
 /// limiter instance instead of this shared singleton. Use <see cref="EToroKeyedRateLimiter"/>
 /// and register it via <c>AddEToro(..., useKeyedRateLimiter: true)</c>.
+/// <para>
+/// Rate limit parameters (<see cref="RateLimitOptions.PermitLimit"/>, <see cref="RateLimitOptions.Window"/>)
+/// are read once at construction time. Runtime changes via <c>IOptionsMonitor</c> are not
+/// reflected; restart the application to apply new rate-limit configuration.
+/// </para>
 /// </remarks>
-public sealed class EToroRateLimiter : IEToroRateLimiter
+public sealed class EToroRateLimiter : IEToroRateLimiter, IDisposable
 {
     private readonly EToroSlidingWindow _window;
     private readonly RateLimitOptions _options;
@@ -36,4 +41,6 @@ public sealed class EToroRateLimiter : IEToroRateLimiter
 
         await _window.WaitAsync(ct);
     }
+
+    public void Dispose() => _window.Dispose();
 }

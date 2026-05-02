@@ -92,6 +92,10 @@ public static class EToroClientExtensions
                 options => !string.IsNullOrWhiteSpace(options.UserAgent),
                 "EToroOptions.UserAgent must be configured.")
             .Validate(
+                options => options.Environment.Equals("real", StringComparison.OrdinalIgnoreCase)
+                           || options.Environment.Equals("demo", StringComparison.OrdinalIgnoreCase),
+                "EToroOptions.Environment must be 'real' or 'demo'.")
+            .Validate(
                 options => options.RateLimit.PermitLimit > 0,
                 "EToroOptions.RateLimit.PermitLimit must be greater than zero.")
             .Validate(

@@ -32,10 +32,22 @@ public sealed class RateLimitHandler : DelegatingHandler
         _delay = delay ?? DelayAsync;
     }
 
+    /// <summary>
+    /// Sends the request, retrying on HTTP 429 up to <see cref="RateLimitOptions.MaxRetries"/> times.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Intermediate 429 responses are disposed internally before each retry. The final response
+    /// — whether a success or an exhausted-retry 429 — is returned to the caller, who is
+    /// responsible for disposing it (typically via <c>using</c> or <c>HttpClient.GetAsync</c>
+    /// which disposes for you when using typed-client extension methods).
+    /// </para>
+    /// </remarks>
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var attempt = 0;
+        HttpRequestMessage? ownedClone = null;
 
         while (true)
         {
@@ -54,7 +66,11 @@ public sealed class RateLimitHandler : DelegatingHandler
             await _delay(delay, cancellationToken);
 
             // Rebuild request for retry because HttpRequestMessage is single-use.
-            request = await CloneRequestAsync(request, cancellationToken);
+            // Dispose the previous clone (if any) once its body has been copied into the new one.
+            var previousClone = ownedClone;
+            ownedClone = await CloneRequestAsync(request, cancellationToken);
+            previousClone?.Dispose();
+            request = ownedClone;
             attempt++;
         }
     }
@@ -128,6 +144,8 @@ public sealed class RateLimitHandler : DelegatingHandler
 
         if (original.Content is not null)
         {
+            // Materialises the full body for retry. Acceptable for the current GET-only surface;
+            // revisit with MemoryPool pooling when write endpoints (POST/PUT) are introduced.
             var bytes = await original.Content.ReadAsByteArrayAsync(ct);
             clone.Content = new ByteArrayContent(bytes);
 

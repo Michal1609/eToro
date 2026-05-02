@@ -17,7 +17,9 @@ public sealed class EToroAuthHandler(IOptions<EToroOptions> options) : Delegatin
 
     private static void SetHeader(HttpRequestMessage request, string name, string value)
     {
-        if (string.IsNullOrWhiteSpace(value) || value.AsSpan().ContainsAny('\r', '\n'))
+        if (string.IsNullOrWhiteSpace(value)
+            || value.AsSpan().IndexOfAnyInRange((char)0, (char)31) >= 0
+            || value.AsSpan().Contains((char)127))
             throw new InvalidOperationException($"Header '{name}' value is invalid.");
 
         request.Headers.Remove(name);

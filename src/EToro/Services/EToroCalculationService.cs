@@ -56,6 +56,15 @@ public sealed class EToroCalculationService(IEToroClient client) : IEToroCalcula
         return CalculateUnrealizedPnL(pnl);
     }
 
+    /// <summary>
+    /// Recomputes unrealized PnL by summing <c>PnL</c> across all open manual and copy positions.
+    /// </summary>
+    /// <remarks>
+    /// This value is derived from position-level data and may differ from the API-reported
+    /// <see cref="PnlResponse.UnrealizedPnL"/> field due to rounding or different grouping logic
+    /// on the eToro server side. To use the API-reported value directly, read
+    /// <c>pnl.UnrealizedPnL</c> instead.
+    /// </remarks>
     public decimal CalculateUnrealizedPnL(PnlResponse pnl)
     {
         ArgumentNullException.ThrowIfNull(pnl);
@@ -102,8 +111,8 @@ public sealed class EToroCalculationService(IEToroClient client) : IEToroCalcula
         var realizedPnl = await CalculateRealizedPnLAsync(fromDate ?? DefaultTradeHistoryFromDate, pageSize, maxPages, ct);
         var equity = CalculateEquity(pnl);
         var totalReturn = realizedPnl + unrealizedPnl;
-        var netDeposits = equity - totalReturn;
-        var totalReturnPct = netDeposits == 0m ? 0m : totalReturn / netDeposits * 100m;
+        var estimatedNetDeposits = equity - totalReturn;
+        var totalReturnPct = estimatedNetDeposits == 0m ? 0m : totalReturn / estimatedNetDeposits * 100m;
 
         return new AccountMetrics(
             availableCash,
@@ -111,11 +120,16 @@ public sealed class EToroCalculationService(IEToroClient client) : IEToroCalcula
             unrealizedPnl,
             realizedPnl,
             equity,
-            netDeposits,
+            estimatedNetDeposits,
             totalReturn,
             totalReturnPct);
     }
 
+    /// <summary>
+    /// Paginates closed-trade history, deduplicating by <c>PositionId</c>.
+    /// Throws <see cref="InvalidOperationException"/> when <paramref name="maxPages"/> is
+    /// exhausted before a terminal page is reached, to prevent silently truncated PnL totals.
+    /// </summary>
     private async Task<decimal> CalculateRealizedPnLAsync(
         DateOnly fromDate,
         int pageSize,
@@ -123,27 +137,31 @@ public sealed class EToroCalculationService(IEToroClient client) : IEToroCalcula
         CancellationToken ct)
     {
         var realizedPnl = 0m;
-        var seenPageSignatures = new HashSet<string>(StringComparer.Ordinal);
-        long? previousLastTradeId = null;
+        var seenPositionIds = new HashSet<long>();
 
         for (var page = 0; page < maxPages; page++)
         {
             var response = await client.GetTradeHistoryAsync(fromDate, page, pageSize, ct);
             if (response.Trades.Count == 0)
-                break;
+                return realizedPnl;
 
-            var pageSignature = string.Join(",", response.Trades.Select(t => t.PositionId));
-            var lastTradeId = response.Trades[^1].PositionId;
-            if (!seenPageSignatures.Add(pageSignature) || previousLastTradeId == lastTradeId)
-                break;
+            var newTrades = false;
+            foreach (var trade in response.Trades)
+            {
+                if (seenPositionIds.Add(trade.PositionId))
+                {
+                    realizedPnl += trade.NetProfit;
+                    newTrades = true;
+                }
+            }
 
-            realizedPnl += response.Trades.Sum(t => t.NetProfit);
-            previousLastTradeId = lastTradeId;
-
-            if (response.Trades.Count < pageSize)
-                break;
+            if (!newTrades || response.Trades.Count < pageSize)
+                return realizedPnl;
         }
 
-        return realizedPnl;
+        throw new InvalidOperationException(
+            $"Trade history scan reached the {maxPages}-page cap (pageSize={pageSize}) without " +
+            "finding a terminal page. Realized PnL is incomplete. " +
+            "Increase maxPages or narrow the fromDate range.");
     }
 }

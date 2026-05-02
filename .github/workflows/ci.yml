@@ -4,20 +4,27 @@ on:
   push:
     branches:
       - main
-      - master
   pull_request:
+    branches:
+      - main
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-test:
     name: Build and test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-    permissions:
-      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -65,3 +72,27 @@ jobs:
         with:
           name: nuget-packages
           path: artifacts/packages/
+
+  podman-smoke:
+    name: Podman smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends podman
+
+      - name: Show Podman version
+        run: sudo podman --version
+
+      - name: Test in .NET SDK container
+        run: |
+          sudo podman run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            mcr.microsoft.com/dotnet/sdk:9.0 \
+            dotnet test EToro.slnx --configuration Release

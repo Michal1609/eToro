@@ -12,13 +12,16 @@ on:
 
 jobs:
   release:
-    name: Pack and publish
+    name: Pack and draft release
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -51,16 +54,13 @@ jobs:
           name: nuget-packages
           path: artifacts/packages/
 
-      - name: Create GitHub Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create draft GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: ${{ github.ref_name }}
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: ${{ github.event.inputs.tag || github.ref_name }}
           draft: true
-          prerelease: ${{ contains(github.ref_name, '-') }}
-
-      # Uncomment to push to NuGet.org once ready:
-      # - name: Push to NuGet
-      #   run: dotnet nuget push artifacts/packages/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+          prerelease: ${{ contains(github.event.inputs.tag || github.ref_name, '-') }}
+          files: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg

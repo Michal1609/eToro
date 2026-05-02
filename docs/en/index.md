@@ -33,6 +33,7 @@ terms of use.
 - [Rate limiting and retries](rate-limiting.md)
 - [Account calculations](account-calculations.md)
 - [Testing and contributing](testing-and-contributing.md)
+- [CI/CD pipelines](ci-cd.md)
 
 Main package: `grznarai.etoro`
 

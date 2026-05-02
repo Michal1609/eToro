@@ -133,6 +133,7 @@ English:
 - [Rate limiting and retries](docs/en/rate-limiting.md)
 - [Account calculations](docs/en/account-calculations.md)
 - [Testing and contributing](docs/en/testing-and-contributing.md)
+- [CI/CD pipelines](docs/en/ci-cd.md)
 
 Čeština:
 
@@ -143,6 +144,7 @@ English:
 - [Rate limiting a retry](docs/cs/rate-limiting.md)
 - [Výpočty účtu](docs/cs/account-calculations.md)
 - [Testování a přispívání](docs/cs/testing-and-contributing.md)
+- [CI/CD pipeliny](docs/cs/ci-cd.md)
 
 ## Current API Areas
 

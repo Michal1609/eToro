@@ -28,6 +28,7 @@ Software používejte výhradně na vlastní nebezpečí.
 - [Rate limiting a retry](rate-limiting.md)
 - [Výpočty účtu](account-calculations.md)
 - [Testování a přispívání](testing-and-contributing.md)
+- [CI/CD pipeliny](ci-cd.md)
 
 Hlavní balíček: `grznarai.etoro`
 
